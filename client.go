@@ -1,9 +1,10 @@
-package goctechpay
+package ctechpay
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -11,7 +12,7 @@ import (
 )
 
 const ProductionURL = "https://api-sandbox.ctechpay.com/"
-const SandboxURL = " https://api-sandbox.ctechpay.com/"
+const SandboxURL = "https://api-sandbox.ctechpay.com/"
 const defaultCancelText = "Cancel Payment"
 
 // Client is the client type for interacting with the CTechPay API
@@ -22,16 +23,17 @@ type Client struct {
 	redirectURL string
 	cancelURL   string
 	cancelText  string
+	Logger      *slog.Logger
 }
 
 // OrderRequest initiates an order request
 type OrderRequest struct {
 	Token              string    `json:"token" form:"token"`
 	Amount             big.Float `json:"amount" form:"amount"`
-	MerchantAttributes bool      `json:"merchantAttributes" form:"merchantAttributes"` //	Merchant attributes enable you to include your custom options when the customer is interacting with the payment page. Set to true to enable the following compulsory and optional parameters: (redirectUrl, cancelUrl, cancelText) 	true
-	RedirectUrl        string    `json:"redirectUrl" form:"redirectUrl"`               //	A compulsory URL to redirect the user after a payment has been made. 	https://example.com/ Note: Only https requests are supported
-	CancelUrl          string    `json:"cancelUrl" form:"cancelUrl"`                   // A compulsory URL to redirect the user when they choose to cancel the payment. 	https://example.com/ Note: Only https requests are supported
-	CancelText         string    `json:"cancelText" form:"cancelText"`                 //	An optional custom text on the cancelUrl link 	“Go back to shop,” “Cancel Payment”
+	MerchantAttributes bool      `json:"merchantAttributes,omitempty" form:"merchantAttributes"` //	Merchant attributes enable you to include your custom options when the customer is interacting with the payment page. Set to true to enable the following compulsory and optional parameters: (redirectUrl, cancelUrl, cancelText) 	true
+	RedirectUrl        string    `json:"redirectUrl,omitempty" form:"redirectUrl"`               //	A compulsory URL to redirect the user after a payment has been made. 	https://example.com/ Note: Only https requests are supported
+	CancelUrl          string    `json:"cancelUrl,omitempty" form:"cancelUrl"`                   // A compulsory URL to redirect the user when they choose to cancel the payment. 	https://example.com/ Note: Only https requests are supported
+	CancelText         string    `json:"cancelText,omitempty" form:"cancelText"`                 //	An optional custom text on the cancelUrl link 	“Go back to shop,” “Cancel Payment”
 }
 
 // OrderResponse contains information about order response from CTechPay
@@ -49,6 +51,7 @@ func NewClient(token string, timeout time.Duration) *Client {
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
+		Logger: slog.Default(),
 	}
 }
 
@@ -60,6 +63,7 @@ func NewSandboxClient(token string, timeout time.Duration) *Client {
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
+		Logger: slog.Default(),
 	}
 }
 
@@ -102,7 +106,9 @@ func (c *Client) InitiateCardOrder(txnID string, amount big.Float, merchant bool
 		form.Set("cancelText", c.cancelText)
 	}
 
-	resp, err := c.httpClient.PostForm(fmt.Sprintf("%s/?endpoint=order", c.BaseURL), form)
+	url := fmt.Sprintf("%s/?endpoint=order", c.BaseURL)
+	c.Logger.Debug("Sending request to CTechPay at", "url", url)
+	resp, err := c.httpClient.PostForm(url, form)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order, got: %w", err)
 	}
