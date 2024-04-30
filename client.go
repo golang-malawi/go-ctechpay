@@ -101,6 +101,7 @@ func (c *Client) InitiateCardOrder(txnID string, amount big.Float, merchant bool
 			return nil, fmt.Errorf("cancelText must be set via *Client.SetCancelURL(string, string)")
 		}
 
+		form.Set("merchantAttributes", "true")
 		form.Set("redirectUrl", c.redirectURL)
 		form.Set("cancelUrl", c.cancelURL)
 		form.Set("cancelText", c.cancelText)
